@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="ROM Hacks">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<title>Pocket ROM Hack Player</title>
+<style>
+  :root{
+    --bg:#0f1115; --panel:#181b22; --panel2:#1f232c; --line:#2a2f3a;
+    --text:#e8eaf0; --muted:#8b93a7; --accent:#d1495b; --accent2:#f2b134;
+    --gba:#6c5ce7; --gb:#2ecc71; --radius:14px;
+    --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
+    --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--text);
+    font:16px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;overscroll-behavior:none;touch-action:manipulation}
+  body.playing{overflow:hidden;position:fixed;inset:0;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+  button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+  [hidden]{display:none!important}
+
+  /* ---------- Library ---------- */
+  #library{min-height:100%;padding:calc(var(--sat) + 18px) calc(var(--sar) + 16px) calc(var(--sab) + 110px) calc(var(--sal) + 16px);max-width:720px;margin:0 auto}
+  .brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .logo{width:42px;height:42px;border-radius:12px;background:linear-gradient(145deg,#2b2f3a,#141720);
+    display:grid;place-items:center;border:1px solid var(--line);flex:none}
+  .logo i{display:block;width:20px;height:16px;border-radius:3px;background:#9bbc0f;box-shadow:inset 0 0 0 2px #0f380f}
+  h1{font-size:20px;margin:0;letter-spacing:.2px}
+  .sub{color:var(--muted);font-size:13px;margin:0 0 18px 54px}
+
+  .empty{background:var(--panel);border:1px dashed var(--line);border-radius:var(--radius);padding:22px 18px;text-align:center;color:var(--muted);margin-top:24px}
+  .empty strong{display:block;color:var(--text);font-size:17px;margin-bottom:6px}
+  .empty p{margin:6px 0 0;font-size:14px}
+
+  .cards{display:flex;flex-direction:column;gap:10px}
+  .card{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:12px 12px 12px 14px;text-align:left;width:100%;transition:transform .08s}
+  .card:active{transform:scale(.985);background:var(--panel2)}
+  .badge{flex:none;width:52px;height:52px;border-radius:12px;display:grid;place-items:center;font-weight:800;font-size:13px;letter-spacing:.5px;color:#fff}
+  .badge.gba{background:linear-gradient(145deg,#7d6ff0,#4b3fc4)}
+  .badge.gb{background:linear-gradient(145deg,#3ddc84,#1e9d57)}
+  .meta{flex:1;min-width:0}
+  .name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .info{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .more{flex:none;width:40px;height:40px;border-radius:10px;color:var(--muted);font-size:22px;line-height:1}
+  .more:active{background:var(--panel2)}
+
+  .fabrow{position:fixed;left:0;right:0;bottom:calc(var(--sab) + 22px);display:flex;justify-content:center;gap:10px;padding:0 16px;pointer-events:none}
+  .fab{pointer-events:auto;background:var(--accent);color:#fff;font-weight:700;padding:15px 22px;border-radius:999px;font-size:15px;
+    box-shadow:0 10px 30px rgba(0,0,0,.35);display:flex;align-items:center;gap:9px;white-space:nowrap}
+  .fab.alt{background:var(--panel2);border:1px solid var(--line);color:var(--text)}
+  .slot{display:flex;align-items:center;gap:12px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px;width:100%;text-align:left}
+  .slot .k{flex:none;width:68px;color:var(--muted);font-size:12px;font-weight:700;letter-spacing:.4px;text-transform:uppercase}
+  .slot .v{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .slot .v.empty{color:var(--muted)}
+  .slot .chev{color:var(--muted)}
+  .slot.ok{border-color:#2f6b45}
+  .field{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--text);border-radius:12px;padding:12px;font:inherit;margin-bottom:10px}
+  .status{font-size:13px;color:var(--muted);margin:0 0 12px;white-space:pre-line}
+  .status.warn{color:var(--accent2)} .status.bad{color:#ff7b8a} .status.good{color:#5fd38d}
+  .list{max-height:40vh;overflow:auto;margin-bottom:10px}
+  .list .card{margin-bottom:8px}
+  .fab:active{filter:brightness(.92)}
+  .fab span.plus{font-size:22px;line-height:0}
+
+  .hero{display:flex;align-items:center;gap:14px;width:100%;text-align:left;margin-bottom:14px;padding:14px 16px;border-radius:16px;
+    background:linear-gradient(135deg,#2a1d3f,#3b1f2a);border:1px solid #4a3450;color:#fff}
+  .hero:active{filter:brightness(1.1)}
+  .hero .playico{flex:none;width:46px;height:46px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font-size:18px}
+  .hero .t{font-size:12px;color:#c9b8d6;text-transform:uppercase;letter-spacing:.5px}
+  .hero .n{font-weight:700;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .hero .meta{min-width:0}
+  .note{color:var(--muted);font-size:12.5px;margin-top:20px;line-height:1.5}
+  .note a{color:var(--muted)}
+
+  /* ---------- Sheet / dialog ---------- */
+  .scrim{position:fixed;inset:0;background:rgba(0,0,0,.55);display:flex;align-items:flex-end;justify-content:center;z-index:50}
+  .sheet{background:var(--panel);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 18px calc(var(--sab) + 18px);border-top:1px solid var(--line)}
+  .sheet h3{margin:4px 0 4px;font-size:17px}
+  .sheet p{margin:0 0 14px;color:var(--muted);font-size:14px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .btn{flex:1;min-width:120px;padding:14px;border-radius:12px;background:var(--panel2);border:1px solid var(--line);font-weight:600;text-align:center}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  .btn.danger{color:#ff7b8a}
+  .btn:active{filter:brightness(1.15)}
+
+  .toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(var(--sab) + 92px);background:#2b2f3a;color:#fff;padding:10px 16px;border-radius:999px;font-size:14px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center}
+  .toast.show{opacity:1}
+
+  /* ---------- Player ---------- */
+  #play{position:fixed;inset:0;background:#000;touch-action:none;overscroll-behavior:none}
+  #game{position:absolute;inset:0}
+  #game .ejs_parent{height:100%!important}
+  #hud{position:absolute;z-index:20;top:calc(var(--sat) + 8px);left:calc(var(--sal) + 8px);display:flex;align-items:center;gap:6px}
+  #pill{display:flex;align-items:center;gap:6px;
+    padding:7px 12px 7px 9px;border-radius:999px;background:rgba(20,22,30,.78);color:#dfe4ee;font-size:13px;font-weight:600;
+    border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:opacity .4s}
+  #pill.dim{opacity:.38}
+  #pill:active{background:rgba(60,64,80,.9)}
+  #gtitle{max-width:38vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:400;color:#aab2c5}
+  #rot{width:38px;height:34px;border-radius:999px;
+    background:rgba(20,22,30,.78);color:#dfe4ee;font-size:17px;border:1px solid rgba(255,255,255,.12);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transition:opacity .4s}
+  #rot.dim{opacity:.38}
+  /* Landscape inside a portrait-locked app: rotate the whole player 90° and swap its box.
+     Turn the phone counter-clockwise (notch to the left). */
+  body.rotated #play{inset:auto;top:0;left:0;transform-origin:left top;transform:rotate(90deg) translateY(-100%)}
+  body.rotated #hud{top:8px;left:calc(var(--sat) + 8px)}
+  body.rotated #game{left:var(--sat);right:var(--sab)}
+  /* ---- Orientation-aware layouts ----
+     body.land  = content box is wider than tall (real device landscape OR our rotated mode).
+     Picture: flush top, full height, centered; --pad keeps >=135px side margins for the controls.
+     Controls use position:fixed so they are laid out against the player box, not EmulatorJS's own containers. */
+  body:not(.land) #game{top:calc(var(--sat) + 50px)}
+  body.land{--inl:var(--sal);--inr:var(--sar)}
+  body.rotated{--inl:var(--sat);--inr:var(--sab)}
+  body.land #game{inset:0}
+  body.land .ejs_canvas_parent{position:absolute!important;top:0;bottom:0;left:var(--pad,0px)!important;right:var(--pad,0px)!important;width:auto!important;height:auto!important}
+  body.land .ejs_virtualGamepad_parent{top:0;bottom:0!important}
+  body.land .ejs_virtualGamepad_left{bottom:auto!important;top:calc(50% - 50px)!important;left:calc(var(--inl) + 4px)!important}
+  body.land .ejs_virtualGamepad_right{bottom:auto!important;top:calc(50% - 75px)!important;right:calc(var(--inr) + 4px)!important}
+  body.land .b_l,body.land .b_r,body.land .b_select,body.land .b_start,body.land .b_speed_fast,body.land .b_speed_slow{position:fixed!important;top:auto!important;width:60px!important}
+  body.land .b_l{top:48px!important;left:calc(var(--inl) + 6px)!important}
+  body.land .b_r{top:48px!important;left:auto!important;right:calc(var(--inr) + 6px)!important}
+  body.land .b_select{bottom:8px!important;left:calc(var(--inl) + 6px)!important}
+  body.land .b_speed_fast{bottom:8px!important;left:calc(var(--inl) + 72px)!important}
+  body.land .b_start{bottom:8px!important;left:auto!important;right:calc(var(--inr) + 6px)!important}
+  body.land .b_speed_slow{bottom:8px!important;left:auto!important;right:calc(var(--inr) + 72px)!important}
+  body.land .b_speed_rewind{display:none}
+  body.land #hud{top:6px;left:calc(var(--inl) + 8px)}
+  body.land #gtitle{display:none}
+  body.land #pill{padding:7px 10px 7px 9px}
+  body.land #pill span:nth-child(2){display:none}
+  body.rotated .toast{left:auto;right:calc(var(--sab) + 60px);top:50%;bottom:auto;transform:translate(50%,-50%) rotate(90deg);transform-origin:center}
+  /* EmulatorJS start screen: big, thumb-friendly, matches app theme */
+  .ejs_start_button{font-size:17px!important;padding:16px 34px!important;border-radius:999px!important;background:var(--accent)!important;border:0!important;box-shadow:0 10px 30px rgba(209,73,91,.4)}
+</style>
+</head>
+<body>
+
+<main id="library">
+  <div class="brand"><div class="logo"><i></i></div><h1>Pocket ROM Hack Player</h1></div>
+  <p class="sub">Game Boy · Game Boy Color · Game Boy Advance</p>
+
+  <div id="hero"></div>
+  <div id="cards" class="cards"></div>
+
+  <div id="empty" class="empty" hidden>
+    <strong>No games yet</strong>
+    <p>Tap <b>Add ROM</b> and pick your patched hack file — <code>.gba</code>, <code>.gbc</code>, <code>.gb</code>, or a <code>.zip</code> containing one.</p>
+    <p>Games and in-game saves stay on this device only.</p>
+  </div>
+
+  <p class="note">
+    <b>Patch a ROM</b> applies a hack's <code>.ips</code>, <code>.ups</code> or <code>.bps</code> patch to your base game right here and adds the result to the library.
+    In-game saves are kept automatically and ☰ → Save State keeps one state per game on this device; use the ☰ menu in-game for save states, fast-forward, cheats and controller layout.
+    Powered by <a href="https://emulatorjs.org" target="_blank" rel="noopener">EmulatorJS</a> (mGBA &amp; Gambatte cores, GPL-3.0).
+  </p>
+
+  <div class="fabrow">
+    <button id="patchBtn" class="fab alt"><span class="plus">⚒</span> Patch a ROM</button>
+    <button id="addBtn" class="fab"><span class="plus">＋</span> Add ROM</button>
+  </div>
+  <input id="file" type="file" accept=".gb,.gbc,.gba,.zip,.7z,application/zip,application/octet-stream" hidden>
+  <input id="pfiles" type="file" multiple accept=".gb,.gbc,.gba,.ips,.ups,.bps,application/octet-stream" hidden>
+</main>
+
+<section id="play" hidden>
+  <div id="game"></div>
+  <div id="hud">
+    <button id="pill" aria-label="Back to library"><span>‹</span><span>Library</span><span id="gtitle"></span></button>
+    <button id="rot" aria-label="Toggle landscape" title="Landscape">⟳</button>
+  </div>
+</section>
+
+<div id="toast" class="toast"></div>
+
+<script>
+(function(){
+  'use strict';
+  const $ = s => document.querySelector(s);
+  const cards = $('#cards'), empty = $('#empty'), fileInput = $('#file');
+
+  /* ---------- tiny IndexedDB wrapper ---------- */
+  const DB_NAME = 'pocket-romhack-player', META = 'meta', BLOB = 'blob';
+  function openDB(){
+    return new Promise((res, rej) => {
+      if (!window.indexedDB) return rej(new Error('IndexedDB unavailable'));
+      const r = indexedDB.open(DB_NAME, 1);
+      r.onupgradeneeded = () => {
+        const db = r.result;
+        if (!db.objectStoreNames.contains(META)) db.createObjectStore(META, { keyPath: 'id' });
+        if (!db.objectStoreNames.contains(BLOB)) db.createObjectStore(BLOB);
+      };
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(r.error);
+    });
+  }
+  async function tx(store, mode, fn){
+    const db = await openDB();
+    return new Promise((res, rej) => {
+      const t = db.transaction(store, mode);
+      const req = fn(t.objectStore(store));
+      t.oncomplete = () => res(req && req.result);
+      t.onerror = () => rej(t.error);
+      t.onabort = () => rej(t.error);
+    });
+  }
+  const listMeta  = () => tx(META, 'readonly', s => s.getAll()).catch(() => []);
+  const putMeta   = m  => tx(META, 'readwrite', s => s.put(m));
+  const getBlob   = id => tx(BLOB, 'readonly', s => s.get(id));
+  const putBlob   = (id, data) => tx(BLOB, 'readwrite', s => s.put(data, id));
+  const delAll    = async id => { await tx(META, 'readwrite', s => s.delete(id)); await tx(BLOB, 'readwrite', s => s.delete(id)); };
+
+  /* ---------- helpers ---------- */
+  let toastTimer;
+  function toast(msg, ms = 2600){
+    const t = $('#toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms);
+  }
+  const fmtSize = b => b >= 1048576 ? (b/1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(b/1024)) + ' KB';
+  const fmtWhen = ts => {
+    if (!ts) return 'never played';
+    const d = Date.now() - ts, m = Math.round(d/60000);
+    if (m < 1) return 'just now'; if (m < 60) return m + ' min ago';
+    const h = Math.round(m/60); if (h < 24) return h + ' h ago';
+    const dd = Math.round(h/24); return dd === 1 ? 'yesterday' : dd + ' days ago';
+  };
+  const baseName = n => n.replace(/\.[^.]+$/, '');
+  const extOf = n => (n.match(/\.([^.]+)$/) || ['',''])[1].toLowerCase();
+  function systemFor(ext){
+    if (ext === 'gba') return 'gba';
+    if (ext === 'gb' || ext === 'gbc' || ext === 'sgb') return 'gb';
+    return null;
+  }
+  // Scan a zip's central directory for the first GB/GBC/GBA entry name.
+  function scanZip(buf){
+    const u8 = new Uint8Array(buf), dv = new DataView(buf);
+    let eocd = -1;
+    for (let i = u8.length - 22; i >= Math.max(0, u8.length - 70000); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+    }
+    if (eocd < 0) return null;
+    const count = dv.getUint16(eocd + 10, true), cdOff = dv.getUint32(eocd + 16, true);
+    let p = cdOff, found = null;
+    const dec = new TextDecoder();
+    for (let n = 0; n < count && p + 46 <= u8.length; n++) {
+      if (dv.getUint32(p, true) !== 0x02014b50) break;
+      const nl = dv.getUint16(p + 28, true), el = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+      const name = dec.decode(u8.subarray(p + 46, p + 46 + nl));
+      const sys = systemFor(extOf(name));
+      if (sys && !name.endsWith('/')) { found = { name, system: sys }; break; }
+      p += 46 + nl + el + cl;
+    }
+    return found;
+  }
+  function sheet(html){
+    const scrim = document.createElement('div'); scrim.className = 'scrim';
+    scrim.innerHTML = '<div class="sheet">' + html + '</div>';
+    scrim.addEventListener('click', e => { if (e.target === scrim) scrim.remove(); });
+    document.body.appendChild(scrim);
+    return scrim;
+  }
+
+  /* ---------- library rendering ---------- */
+  async function render(){
+    const items = (await listMeta()).sort((a, b) => (b.lastPlayed || b.added) - (a.lastPlayed || a.added));
+    cards.innerHTML = '';
+    empty.hidden = items.length > 0;
+    const hero = $('#hero'); hero.innerHTML = '';
+    const last = items.find(m => m.lastPlayed);
+    if (last) {
+      const h = document.createElement('button'); h.className = 'hero';
+      h.innerHTML = '<div class="playico">▶</div><div class="meta"><div class="t">Resume</div><div class="n"></div></div>';
+      h.querySelector('.n').textContent = baseName(last.name);
+      h.onclick = () => launch(last);
+      hero.appendChild(h);
+    }
+    for (const m of items) {
+      const card = document.createElement('button'); card.className = 'card';
+      card.innerHTML =
+        '<div class="badge ' + m.system + '">' + (m.system === 'gba' ? 'GBA' : (extOf(m.name) === 'gb' ? 'GB' : 'GBC')) + '</div>' +
+        '<div class="meta"><div class="name"></div><div class="info">' + (romVerdict(m) ? '<span style="color:#ff7b8a">⚠ check file</span> · ' : '') + fmtSize(m.size) + ' · ' + fmtWhen(m.lastPlayed) + '</div></div>' +
+        '<span class="more" role="button" aria-label="Options">⋯</span>';
+      card.querySelector('.name').textContent = baseName(m.name);
+      card.addEventListener('click', e => {
+        if (e.target.closest('.more')) { options(m); return; }
+        launch(m);
+      });
+      cards.appendChild(card);
+    }
+  }
+  function options(m){
+    const v = romVerdict(m), i = m.insp;
+    const details = i ? ('<p class="status' + (v ? ' bad' : '') + '" style="margin-top:-6px">' +
+        (i.title ? 'Header: ' + i.title + (i.code ? ' [' + i.code + ']' : '') + ' · ' : '') +
+        'checksum ' + (i.headerOk === null ? 'n/a' : i.headerOk ? 'OK' : 'FAILED') + '\n' +
+        'CRC32 ' + i.crc + (i.known ? ' = ' + i.known : '') +
+        (v ? '\n' + v.text : '') + '</p>') : '';
+    const s = sheet(
+      '<h3></h3><p>' + fmtSize(m.size) + ' · added ' + new Date(m.added).toLocaleDateString() + '</p>' + details +
+      '<p class="status" id="cloudline">Cloud sync: checking…</p>' +
+      (insideClaude ? '<div class="row" style="margin-bottom:10px"><button class="btn" data-a="up">Upload save to cloud</button><button class="btn" data-a="down">Get cloud save</button></div>' : '') +
+      '<div class="row" style="margin-bottom:10px"><button class="btn" data-a="xsave">Export save' + (insideClaude ? ' (.zip)' : ' (.sav)') + '</button><button class="btn" data-a="xrom">Export ROM' + (insideClaude ? ' (.zip)' : '') + '</button></div>' +
+      '<div class="row"><button class="btn primary" data-a="play">Play</button>' +
+      '<button class="btn danger" data-a="del">Remove from device</button></div>');
+    s.querySelector('h3').textContent = baseName(m.name);
+    s.querySelector('[data-a=play]').onclick = () => { s.remove(); launch(m); };
+    const cl = s.querySelector('#cloudline');
+    (async () => {
+      const ok = await withTimeout(cloud.ready, 6000, false);
+      const local = await readLocalSave(m);
+      let txt = local ? 'Save on this device: ' + fmtSize(local.bytes.length) + ', ' + fmtWhen(local.ts) + '. ' : 'No in-game save on this device yet. ';
+      if (!ok) txt += insideClaude ? 'Cloud sync unavailable here (open the page signed in to Claude).' : 'Cloud sync works only inside Claude; use Export save and the in-game Import Save File to move saves.';
+      else { try { const r = await withTimeout(cloudGet(m), 8000, undefined); txt += r ? 'Cloud: ' + fmtSize(r.bytes.length) + ', ' + fmtWhen(r.updated) + (local && hex8(crc32(local.bytes)) === r.crc ? ' (in sync)' : ' (differs)') : 'Cloud: nothing uploaded yet.'; } catch (e) { txt += 'Cloud: could not read.'; } }
+      cl.textContent = txt;
+    })();
+    const upBtn = s.querySelector('[data-a=up]'); if (upBtn) upBtn.onclick = async e => { e.target.disabled = true; const r = await syncUp(m, true); e.target.disabled = false; toast({ uploaded: 'Save uploaded to cloud', same: 'Cloud already has this save', nosave: 'No save on this device yet', offline: 'Cloud sync unavailable here', error: 'Upload failed' }[r] || r); };
+    const downBtn = s.querySelector('[data-a=down]'); if (downBtn) downBtn.onclick = async e => {
+      e.target.disabled = true;
+      if (!(await withTimeout(cloud.ready, 6000, false))) { toast('Cloud sync unavailable here'); e.target.disabled = false; return; }
+      let r = null; try { r = await withTimeout(cloudGet(m), 8000, null); } catch (err) {}
+      if (!r) { toast('No cloud save for this game'); e.target.disabled = false; return; }
+      await writeLocalSave(m, r.bytes); m.cloudCrc = r.crc; m.cloudUpdated = r.updated; await putMeta(m);
+      toast('Cloud save placed on this device'); e.target.disabled = false;
+    };
+    s.querySelector('[data-a=xsave]').onclick = async () => { const local = await readLocalSave(m); if (!local) { toast('No in-game save yet'); return; } exportZip(baseName(m.name) + '-save.zip', [{ name: baseName(m.name) + '.sav', data: local.bytes }]); };
+    s.querySelector('[data-a=xrom]').onclick = async () => { const data = await getBlob(m.id); if (!data) { toast('ROM missing'); return; } exportZip(baseName(m.name) + '.zip', [{ name: m.name, data: new Uint8Array(data) }]); };
+    s.querySelector('[data-a=del]').onclick = () => {
+      s.querySelector('.row').innerHTML =
+        '<p style="width:100%">Remove the ROM file from this device? Your in-game save and save states are kept and will reattach if you add the same file again.</p>' +
+        '<button class="btn" data-a="no">Keep</button><button class="btn danger" data-a="yes">Remove</button>';
+      s.querySelector('[data-a=no]').onclick = () => s.remove();
+      s.querySelector('[data-a=yes]').onclick = async () => { await delAll(m.id); s.remove(); toast('Removed'); render(); };
+    };
+  }
+
+  /* ---------- adding ROMs ---------- */
+  $('#addBtn').addEventListener('click', () => {
+    try { navigator.storage && navigator.storage.persist && navigator.storage.persist().catch(() => {}); } catch (e) {}
+    fileInput.value = ''; fileInput.click();
+  });
+  fileInput.addEventListener('change', async () => {
+    const f = fileInput.files && fileInput.files[0]; if (!f) return;
+    try {
+      const buf = await f.arrayBuffer();
+      const ext = extOf(f.name);
+      let system = systemFor(ext);
+      if (!system && ext === 'zip') { const hit = scanZip(buf); if (hit) system = hit.system; }
+      if (!system) system = await askSystem(f.name);
+      if (!system) return;
+      await save(f.name, system, buf);
+    } catch (e) { console.error(e); toast('Could not read that file'); }
+  });
+  function askSystem(name){
+    return new Promise(res => {
+      const s = sheet('<h3>Which system?</h3><p>Could not tell from the file name “' + name.replace(/[<>&]/g, '') + '”.</p>' +
+        '<div class="row"><button class="btn" data-s="gba">Game Boy Advance</button><button class="btn" data-s="gb">Game Boy / Color</button></div>');
+      s.querySelectorAll('[data-s]').forEach(b => b.onclick = () => { s.remove(); res(b.dataset.s); });
+      s.addEventListener('click', e => { if (e.target === s) res(null); });
+    });
+  }
+  async function save(name, system, buf){
+    const id = name.toLowerCase();
+    const existing = (await listMeta()).find(m => m.id === id);
+    const insp = inspectRom(buf, system);
+    await putBlob(id, buf);
+    const meta = { id, name, system, size: buf.byteLength, added: existing ? existing.added : Date.now(), lastPlayed: existing ? existing.lastPlayed : 0, insp };
+    await putMeta(meta);
+    const v = romVerdict(meta);
+    toast(v ? '⚠ Added — tap ⋯ to see why this file may not boot' : (existing ? 'Updated ' + baseName(name) : 'Added ' + baseName(name)), v ? 5000 : 2600);
+    render();
+    return meta;
+  }
+
+
+  /* ---------- ROM patching (IPS / UPS / BPS) ---------- */
+  const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8){ let c = 0xFFFFFFFF; for (let i = 0; i < u8.length; i++) c = CRC_T[(c ^ u8[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  const hex8 = n => n.toString(16).toUpperCase().padStart(8, '0');
+  // Known clean base ROMs (No-Intro CRC32) that most Pokémon hacks are built on.
+  const KNOWN_BASES = {
+    'DD88761C': 'Pokémon FireRed (USA) v1.0', '84EE4776': 'Pokémon FireRed (USA/EUR) v1.1',
+    'D69C96CC': 'Pokémon LeafGreen (USA) v1.0', 'DAFFECEC': 'Pokémon LeafGreen (USA/EUR) v1.1',
+    '1F1C08FB': 'Pokémon Emerald (USA/EUR)'
+  };
+  const ascii = u8 => Array.from(u8).map(b => (b >= 32 && b < 127) ? String.fromCharCode(b) : '').join('').trim();
+  function inspectRom(buf, system){
+    const u8 = new Uint8Array(buf), crc = hex8(crc32(u8)), r = { crc, known: KNOWN_BASES[crc] || null, headerOk: null, title: '', code: '' };
+    if (system === 'gba' && u8.length >= 0xC0) {
+      let c = 0; for (let i = 0xA0; i <= 0xBC; i++) c = (c - u8[i]) & 0xFF; c = (c - 0x19) & 0xFF;
+      r.headerOk = (c === u8[0xBD]) && u8[0xB2] === 0x96;
+      r.title = ascii(u8.subarray(0xA0, 0xAC)); r.code = ascii(u8.subarray(0xAC, 0xB0));
+      r.entryOk = (u8[3] === 0xEA);             // first instruction must be an ARM branch
+    } else if (system === 'gb' && u8.length >= 0x150) {
+      let c = 0; for (let i = 0x134; i <= 0x14C; i++) c = (c - u8[i] - 1) & 0xFF;
+      r.headerOk = (c === u8[0x14D]); r.title = ascii(u8.subarray(0x134, 0x143));
+      r.cgb = u8[0x143] === 0x80 || u8[0x143] === 0xC0;
+    }
+    return r;
+  }
+  function romVerdict(m){
+    if (!m.insp) return null;
+    if (m.system === 'gba' && m.insp.entryOk === false) return { bad: true, text: 'Entry point is not a valid ARM branch — this is not a bootable GBA ROM (wrong file, or a patch applied to the wrong thing).' };
+    if (m.insp.headerOk === false) return { bad: true, text: 'Header checksum fails — the file is corrupted or is not a plain ' + (m.system === 'gba' ? 'GBA' : 'Game Boy') + ' ROM. Re-download or re-patch it.' };
+    if (m.insp.known) return { bad: true, text: 'This is an unmodified ' + m.insp.known + ' — the hack was never applied. Use Patch a ROM with this as the base.' };
+    return null;
+  }
+  function readVar(u8, st){ let data = 0, shift = 1; for (;;) { if (st.p >= u8.length) throw new Error('Patch is truncated'); const x = u8[st.p++]; data += (x & 0x7F) * shift; if (x & 0x80) break; shift *= 128; data += shift; } return data; }
+  function patchFormat(u8){
+    const sig = String.fromCharCode(...u8.subarray(0, 5));
+    if (sig === 'PATCH') return 'ips'; if (sig.startsWith('UPS1')) return 'ups'; if (sig.startsWith('BPS1')) return 'bps'; return null;
+  }
+  function applyIPS(src, p){
+    let out = new Uint8Array(src), pos = 5, truncate = -1;
+    const grow = n => { if (n > out.length) { const o = new Uint8Array(n); o.set(out); out = o; } };
+    for (;;) {
+      if (pos + 3 > p.length) throw new Error('IPS patch is truncated');
+      if (p[pos] === 0x45 && p[pos+1] === 0x4F && p[pos+2] === 0x46) { pos += 3; if (pos + 3 <= p.length) truncate = (p[pos] << 16) | (p[pos+1] << 8) | p[pos+2]; break; }
+      const off = (p[pos] << 16) | (p[pos+1] << 8) | p[pos+2]; let size = (p[pos+3] << 8) | p[pos+4]; pos += 5;
+      if (size === 0) { const rl = (p[pos] << 8) | p[pos+1], val = p[pos+2]; pos += 3; grow(off + rl); out.fill(val, off, off + rl); }
+      else { grow(off + size); out.set(p.subarray(pos, pos + size), off); pos += size; }
+    }
+    if (truncate > 0 && truncate < out.length) out = out.slice(0, truncate);
+    return { out, notes: ['IPS has no checksums — base ROM could not be verified.'], warn: true };
+  }
+  function applyUPS(src, p){
+    const st = { p: 4 }, notes = []; let warn = false;
+    const srcSize = readVar(p, st), tgtSize = readVar(p, st);
+    const crcSrc = new DataView(p.buffer, p.byteOffset + p.length - 12).getUint32(0, true);
+    const crcTgt = new DataView(p.buffer, p.byteOffset + p.length - 12).getUint32(4, true);
+    const crcPat = new DataView(p.buffer, p.byteOffset + p.length - 12).getUint32(8, true);
+    if (crc32(p.subarray(0, p.length - 4)) !== crcPat) throw new Error('Patch file is corrupted (bad patch CRC)');
+    const have = crc32(src);
+    if (have !== crcSrc) { warn = true; notes.push('Base ROM checksum mismatch: expected ' + hex8(crcSrc) + ', got ' + hex8(have) + '. Patch was made for a different base file.'); }
+    if (src.length !== srcSize) notes.push('Base size differs (' + src.length + ' vs expected ' + srcSize + ').');
+    const out = new Uint8Array(Math.max(tgtSize, src.length)); out.set(src);
+    let o = 0; const end = p.length - 12;
+    while (st.p < end) {
+      o += readVar(p, st);
+      for (;;) { if (st.p >= end) break; const x = p[st.p++]; if (x === 0) { o++; break; } if (o < out.length) out[o] ^= x; o++; }
+    }
+    const res = out.slice(0, tgtSize);
+    if (crc32(res) !== crcTgt) { warn = true; notes.push('Output checksum does not match the patch author’s (' + hex8(crcTgt) + ') — the hack may not run correctly.'); }
+    else notes.push('Output verified: CRC32 ' + hex8(crcTgt) + ' ✓');
+    return { out: res, notes, warn };
+  }
+  function applyBPS(src, p){
+    const st = { p: 4 }, notes = []; let warn = false;
+    const srcSize = readVar(p, st), tgtSize = readVar(p, st), metaSize = readVar(p, st); st.p += metaSize;
+    const dv = new DataView(p.buffer, p.byteOffset + p.length - 12);
+    const crcSrc = dv.getUint32(0, true), crcTgt = dv.getUint32(4, true), crcPat = dv.getUint32(8, true);
+    if (crc32(p.subarray(0, p.length - 4)) !== crcPat) throw new Error('Patch file is corrupted (bad patch CRC)');
+    const have = crc32(src);
+    if (have !== crcSrc) { warn = true; notes.push('Base ROM checksum mismatch: expected ' + hex8(crcSrc) + ', got ' + hex8(have) + '. Patch was made for a different base file.'); }
+    if (src.length !== srcSize) notes.push('Base size differs (' + src.length + ' vs expected ' + srcSize + ').');
+    const out = new Uint8Array(tgtSize); let o = 0, sRel = 0, tRel = 0; const end = p.length - 12;
+    while (st.p < end) {
+      const d = readVar(p, st); const cmd = d & 3; let len = (d >> 2) + 1;
+      if (o + len > tgtSize) throw new Error('BPS patch writes past the target size');
+      if (cmd === 0) { out.set(src.subarray(o, o + len), o); o += len; }
+      else if (cmd === 1) { out.set(p.subarray(st.p, st.p + len), o); st.p += len; o += len; }
+      else if (cmd === 2) { const r = readVar(p, st); sRel += (r & 1 ? -1 : 1) * (r >> 1); while (len--) out[o++] = src[sRel++]; }
+      else { const r = readVar(p, st); tRel += (r & 1 ? -1 : 1) * (r >> 1); while (len--) out[o++] = out[tRel++]; }
+    }
+    if (crc32(out) !== crcTgt) { warn = true; notes.push('Output checksum does not match the patch author’s (' + hex8(crcTgt) + ') — the hack may not run correctly.'); }
+    else notes.push('Output verified: CRC32 ' + hex8(crcTgt) + ' ✓');
+    return { out, notes, warn };
+  }
+  function applyPatch(srcBuf, patBuf){
+    const src = new Uint8Array(srcBuf), p = new Uint8Array(patBuf), fmt = patchFormat(p);
+    if (fmt === 'ips') return Object.assign(applyIPS(src, p), { fmt });
+    if (fmt === 'ups') return Object.assign(applyUPS(src, p), { fmt });
+    if (fmt === 'bps') return Object.assign(applyBPS(src, p), { fmt });
+    throw new Error('Not an IPS, UPS or BPS patch');
+  }
+
+  /* ---------- patch UI ---------- */
+  const pfiles = $('#pfiles');
+  let P = null; // { base:{name,buf,fromLib}, patch:{name,buf}, sheetEl }
+  const isPatchExt = e => ['ips','ups','bps'].includes(e);
+  $('#patchBtn').addEventListener('click', () => { P = { base: null, patch: null }; openPatchSheet(); });
+  function openPatchSheet(){
+    if (P.sheetEl) P.sheetEl.remove();
+    const s = sheet(
+      '<h3>Patch a ROM</h3><p>Pick the clean base game and the hack’s patch file. You can select both at once.</p>' +
+      '<button class="slot" id="slotBase"><span class="k">Base ROM</span><span class="v empty">Choose file or library game…</span><span class="chev">›</span></button>' +
+      '<button class="slot" id="slotPatch"><span class="k">Patch</span><span class="v empty">Choose .ips / .ups / .bps…</span><span class="chev">›</span></button>' +
+      '<input class="field" id="outName" placeholder="Name for the patched game" hidden>' +
+      '<p class="status" id="pstatus"></p>' +
+      '<div class="row"><button class="btn" id="pickBoth">Select files</button><button class="btn primary" id="doPatch" disabled>Patch &amp; add</button></div>');
+    P.sheetEl = s;
+    s.querySelector('#slotBase').onclick = () => baseChooser();
+    s.querySelector('#slotPatch').onclick = () => { pfiles.value = ''; pfiles.click(); };
+    s.querySelector('#pickBoth').onclick = () => { pfiles.value = ''; pfiles.click(); };
+    s.querySelector('#doPatch').onclick = runPatch;
+    refreshPatchSheet();
+  }
+  function refreshPatchSheet(){
+    const s = P.sheetEl; if (!s) return;
+    const bv = s.querySelector('#slotBase .v'), pv = s.querySelector('#slotPatch .v');
+    bv.textContent = P.base ? P.base.name + ' (' + fmtSize(P.base.buf.byteLength) + ')' : 'Choose file or library game…';
+    bv.classList.toggle('empty', !P.base); s.querySelector('#slotBase').classList.toggle('ok', !!P.base);
+    pv.textContent = P.patch ? P.patch.name + ' (' + fmtSize(P.patch.buf.byteLength) + ')' : 'Choose .ips / .ups / .bps…';
+    pv.classList.toggle('empty', !P.patch); s.querySelector('#slotPatch').classList.toggle('ok', !!P.patch);
+    const ready = !!(P.base && P.patch);
+    const name = s.querySelector('#outName'); name.hidden = !ready;
+    if (ready && !name.value) name.value = baseName(P.patch.name);
+    s.querySelector('#doPatch').disabled = !ready;
+    const st = s.querySelector('#pstatus'); st.className = 'status';
+    let txt = '';
+    if (P.base) {
+      const bi = inspectRom(P.base.buf, systemFor(extOf(P.base.name)));
+      txt = 'Base CRC32 ' + bi.crc + (bi.known ? ' = ' + bi.known : (bi.title ? ' (' + bi.title + ')' : '')) + '\n';
+      if (!bi.known) txt += 'Not a recognized clean Pokémon base — compare this CRC32 with the hack\u2019s readme.\n';
+      if (bi.headerOk === false) { st.classList.add('warn'); txt += 'Base header checksum fails — this base is already patched or damaged.\n'; }
+    }
+    if (ready) txt += 'Output will be saved as .' + extOf(P.base.name) + ' and added to your library.';
+    st.textContent = txt;
+  }
+  pfiles.addEventListener('change', async () => {
+    const list = Array.from(pfiles.files || []); if (!list.length) return;
+    for (const f of list) {
+      const e = extOf(f.name);
+      const buf = await f.arrayBuffer();
+      if (isPatchExt(e) || patchFormat(new Uint8Array(buf))) P.patch = { name: f.name, buf };
+      else if (systemFor(e)) P.base = { name: f.name, buf };
+      else toast('Skipped ' + f.name + ' — not a ROM or patch');
+    }
+    if (!P.sheetEl || !document.body.contains(P.sheetEl)) openPatchSheet(); else refreshPatchSheet();
+  });
+  async function baseChooser(){
+    const items = (await listMeta()).sort((a, b) => a.name.localeCompare(b.name));
+    const s = sheet('<h3>Base ROM</h3><p>Use a game already on this device, or choose a file.</p><div class="list" id="blist"></div>' +
+      '<div class="row"><button class="btn primary" id="bfile">Choose a file…</button></div>');
+    const list = s.querySelector('#blist');
+    if (!items.length) list.innerHTML = '<p class="status">No games in the library yet.</p>';
+    for (const m of items) {
+      const b = document.createElement('button'); b.className = 'card';
+      b.innerHTML = '<div class="badge ' + m.system + '">' + (m.system === 'gba' ? 'GBA' : 'GB') + '</div><div class="meta"><div class="name"></div><div class="info">' + fmtSize(m.size) + '</div></div>';
+      b.querySelector('.name').textContent = baseName(m.name);
+      b.onclick = async () => { const buf = await getBlob(m.id); P.base = { name: m.name, buf, fromLib: true }; s.remove(); refreshPatchSheet(); };
+      list.appendChild(b);
+    }
+    s.querySelector('#bfile').onclick = () => { s.remove(); pfiles.value = ''; pfiles.click(); };
+  }
+  async function runPatch(){
+    const s = P.sheetEl, st = s.querySelector('#pstatus'), btn = s.querySelector('#doPatch');
+    btn.disabled = true; st.className = 'status'; st.textContent = 'Patching…';
+    await new Promise(r => setTimeout(r, 30));
+    try {
+      const r = applyPatch(P.base.buf, P.patch.buf);
+      let name = (s.querySelector('#outName').value || baseName(P.patch.name)).replace(/[\\/:*?"<>|]/g, '').trim() || 'patched';
+      name += '.' + extOf(P.base.name);
+      const sys = systemFor(extOf(P.base.name));
+      const meta = await save(name, sys, r.out.buffer);
+      const v = romVerdict(meta);
+      st.className = 'status ' + (v ? 'bad' : r.warn ? 'warn' : 'good');
+      st.textContent = r.fmt.toUpperCase() + ' applied → ' + fmtSize(r.out.byteLength) + '\n' + r.notes.join('\n') + (v ? '\n' + v.text : '\nHeader check OK — ready to play.');
+      btn.textContent = 'Done — tap to close'; btn.disabled = false; btn.onclick = () => s.remove();
+    } catch (e) {
+      console.error(e); st.className = 'status bad'; st.textContent = 'Patch failed: ' + e.message; btn.disabled = false;
+    }
+  }
+
+
+  /* ---------- Emulator save files (EmulatorJS keeps them in Emscripten IDBFS: db "/data/saves") ---------- */
+  const ejsName = n => baseName(n).replace(/[#<$+%>!`&*'|{}/\\?"=@:^\r\n]/ig, '').trim() || 'game';
+  function openSavesDB(){
+    return new Promise((res, rej) => {
+      const q = indexedDB.open('/data/saves', 21);
+      q.onupgradeneeded = () => { const db = q.result; const st = db.objectStoreNames.contains('FILE_DATA') ? q.transaction.objectStore('FILE_DATA') : db.createObjectStore('FILE_DATA'); if (!st.indexNames.contains('timestamp')) st.createIndex('timestamp', 'timestamp', { unique: false }); };
+      q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); q.onblocked = () => rej(new Error('blocked'));
+    });
+  }
+  async function savesReq(mode, fn){ const db = await openSavesDB(); try { return await new Promise((res, rej) => { const t = db.transaction('FILE_DATA', mode); const r = fn(t.objectStore('FILE_DATA')); t.oncomplete = () => res(r && r.result); t.onerror = () => rej(t.error); }); } finally { db.close(); } }
+  async function readLocalSave(m){
+    try {
+      const keys = await savesReq('readonly', s => s.getAllKeys());
+      const key = keys.find(k => k.endsWith('/' + ejsName(m.name) + '.srm')); if (!key) return null;
+      const v = await savesReq('readonly', s => s.get(key)); if (!v || !v.contents) return null;
+      const c = v.contents; return { key, bytes: new Uint8Array(c.buffer, c.byteOffset, c.length), ts: +new Date(v.timestamp) || 0 };
+    } catch (e) { return null; }
+  }
+  async function writeLocalSave(m, bytes){
+    const dir = '/data/saves/' + (m.system === 'gba' ? 'mGBA' : 'Gambatte');
+    const keys = await savesReq('readonly', s => s.getAllKeys());
+    const key = keys.find(k => k.endsWith('/' + ejsName(m.name) + '.srm')) || (dir + '/' + ejsName(m.name) + '.srm');
+    const now = new Date(), kdir = key.substring(0, key.lastIndexOf('/'));
+    await savesReq('readwrite', s => { if (!keys.includes(kdir)) s.put({ mode: 16877, timestamp: now }, kdir); return s.put({ mode: 33206, timestamp: now, contents: new Int8Array(bytes.slice().buffer) }, key); });
+  }
+
+  /* ---------- Cloud save sync (per-user store provided by the artifact platform) ---------- */
+  const cloud = { db: null, uid: null, dl: null, status: 'connecting' };
+  cloud.ready = (async () => {
+    try {
+      if (!window.claude || typeof claude.use !== 'function') { cloud.status = 'unavailable'; return false; }
+      const [db, user, dl] = await Promise.all([claude.use('db'), claude.use('user'), claude.use('downloads')]);
+      cloud.dl = dl;
+      if (!db || !user) { cloud.status = 'unavailable'; return false; }
+      const uid = await user.id(); if (!uid) { cloud.status = 'unavailable'; return false; }
+      cloud.db = db; cloud.uid = uid; cloud.status = 'ok'; return true;
+    } catch (e) { cloud.status = 'unavailable'; return false; }
+  })();
+  const withTimeout = (p, ms, fb) => Promise.race([p, new Promise(r => setTimeout(() => r(fb), ms))]);
+  const cloudKey = m => 'save_' + m.id.replace(/[^A-Za-z0-9_\-.~:@+]/g, '_').slice(0, 150);
+  const b64enc = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
+  const b64dec = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+  const CHUNK = 180000;   // base64 chars per document (limit is 256 KiB serialized)
+  async function cloudGet(m){
+    if (!cloud.db) return null;
+    const col = cloud.db.collection('data/users/' + cloud.uid);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const snap = await col.doc(cloudKey(m)).get(); if (!snap.exists) return null;
+      const d = snap.data(); let b64 = d.b64 || '';
+      for (let i = 1; i < (d.parts || 1); i++) { const p = await col.doc(cloudKey(m) + '_p' + i).get(); if (!p.exists) return null; b64 += p.data().b64; }
+      const bytes = b64dec(b64);
+      if (hex8(crc32(bytes)) === d.crc) return { bytes, crc: d.crc, updated: d.updated || 0 };
+    }
+    return null;   // torn read twice — ignore
+  }
+  async function cloudPut(m, bytes){
+    const b64 = b64enc(bytes), parts = Math.max(1, Math.ceil(b64.length / CHUNK)), col = cloud.db.collection('data/users/' + cloud.uid);
+    const crc = hex8(crc32(bytes)), updated = Date.now();
+    for (let i = 1; i < parts; i++) await col.doc(cloudKey(m) + '_p' + i).set({ b64: b64.slice(i * CHUNK, (i + 1) * CHUNK) });
+    await col.doc(cloudKey(m)).set({ name: m.name, crc, size: bytes.length, updated, parts, b64: b64.slice(0, CHUNK) });
+    return { crc, updated };
+  }
+  // Upload this device's save if it changed since the last upload. Returns a short status string.
+  async function syncUp(m, quiet){
+    if (!(await withTimeout(cloud.ready, 6000, false))) return 'offline';
+    const local = await readLocalSave(m); if (!local || !local.bytes.length) return 'nosave';
+    const crc = hex8(crc32(local.bytes));
+    if (m.cloudCrc === crc) return 'same';
+    try { const r = await cloudPut(m, local.bytes); m.cloudCrc = r.crc; m.cloudUpdated = r.updated; await putMeta(m); if (!quiet) toast('Save uploaded to cloud'); return 'uploaded'; }
+    catch (e) { console.error(e); if (!quiet) toast('Cloud upload failed'); return 'error'; }
+  }
+  // Before launching: bring down a newer cloud save, asking when both sides differ.
+  async function syncDown(m){
+    if (!(await withTimeout(cloud.ready, 6000, false))) return;
+    let remote; try { remote = await withTimeout(cloudGet(m), 8000, undefined); } catch (e) { remote = undefined; }
+    if (!remote) return;
+    const local = await readLocalSave(m);
+    const localCrc = local ? hex8(crc32(local.bytes)) : null;
+    if (localCrc === remote.crc) { if (m.cloudCrc !== remote.crc) { m.cloudCrc = remote.crc; m.cloudUpdated = remote.updated; putMeta(m).catch(() => {}); } return; }
+    const apply = async () => { await writeLocalSave(m, remote.bytes); m.cloudCrc = remote.crc; m.cloudUpdated = remote.updated; await putMeta(m); };
+    if (!local) { await apply(); toast('Cloud save restored'); return; }
+    // Both exist and differ. If this device already knew the cloud version (uploaded it), cloud is newer → ask.
+    if (remote.updated <= (m.cloudUpdated || 0)) return;           // local is newer than anything uploaded; keep it
+    const choice = await new Promise(res => {
+      const sh = sheet('<h3>Which save?</h3><p>The cloud has a save from ' + fmtWhen(remote.updated) + ' that differs from the one on this device (' + fmtWhen(local.ts) + ').</p>' +
+        '<div class="row"><button class="btn primary" data-c="cloud">Use cloud save</button><button class="btn" data-c="local">Keep this device’s</button></div>');
+      sh.querySelectorAll('[data-c]').forEach(b => b.onclick = () => { sh.remove(); res(b.dataset.c); });
+      sh.addEventListener('click', e => { if (e.target === sh) res('local'); });
+    });
+    if (choice === 'cloud') { await apply(); toast('Cloud save loaded'); }
+  }
+
+  /* ---------- Export (zip is the one archive format the download capability allows) ---------- */
+  function makeZip(files){
+    const enc = new TextEncoder(), d = new Date();
+    const dtime = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1), ddate = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    const parts = [], central = []; let offset = 0;
+    for (const f of files) {
+      const n = enc.encode(f.name), crc = crc32(f.data), L = f.data.length;
+      const lh = new DataView(new ArrayBuffer(30)); lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true); lh.setUint16(10, dtime, true); lh.setUint16(12, ddate, true); lh.setUint32(14, crc, true); lh.setUint32(18, L, true); lh.setUint32(22, L, true); lh.setUint16(26, n.length, true); lh.setUint16(28, 0, true);
+      const ch = new DataView(new ArrayBuffer(46)); ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true); ch.setUint16(12, dtime, true); ch.setUint16(14, ddate, true); ch.setUint32(16, crc, true); ch.setUint32(20, L, true); ch.setUint32(24, L, true); ch.setUint16(28, n.length, true); ch.setUint32(42, offset, true);
+      parts.push(lh.buffer, n, f.data); central.push(ch.buffer, n); offset += 30 + n.length + L;
+    }
+    const cdSize = central.reduce((a, b) => a + b.byteLength, 0);
+    const eocd = new DataView(new ArrayBuffer(22)); eocd.setUint32(0, 0x06054b50, true); eocd.setUint16(8, files.length, true); eocd.setUint16(10, files.length, true); eocd.setUint32(12, cdSize, true); eocd.setUint32(16, offset, true);
+    return new Blob([...parts, ...central, eocd.buffer], { type: 'application/zip' });
+  }
+  const insideClaude = !!(window.claude && typeof claude.use === 'function');
+  async function exportZip(filename, files){
+    if (!insideClaude) {
+      // Plain hosting: download the file itself (a .sav imports straight into other emulators).
+      try {
+        const f = files[0], url = URL.createObjectURL(new Blob([f.data]));
+        const a = document.createElement('a'); a.href = url; a.download = f.name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 4000); toast('Downloading ' + f.name);
+      } catch (e) { console.error(e); toast('Export failed'); }
+      return;
+    }
+    await withTimeout(cloud.ready, 6000, false);
+    if (!cloud.dl) { toast('Export isn’t available in this view'); return; }
+    try { await cloud.dl.save({ filename, data: makeZip(files) }); toast('Exported'); }
+    catch (e) { if (e && e.code === 'declined') return; console.error(e); toast('Export failed' + (e && e.code ? ' (' + e.code + ')' : '')); }
+  }
+
+  /* ---------- launching ---------- */
+  let current = null;
+  async function launch(m){
+    const data = await getBlob(m.id);
+    if (!data) { toast('File missing — add it again'); return; }
+    if (insideClaude && cloud.status !== 'unavailable') { toast('Checking cloud save…', 1500); try { await syncDown(m); } catch (e) { console.error(e); } }
+    current = m;
+    m.lastPlayed = Date.now(); putMeta(m).catch(() => {});
+    try { sessionStorage.setItem('prp-last', m.id); } catch (e) {}
+
+    $('#library').hidden = true; $('#play').hidden = false; $('#gtitle').textContent = '· ' + baseName(m.name);
+    document.body.classList.add('playing');
+    try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (e) {}
+    // Fade the back pill once the game is running; any touch brings it back.
+    const pills = [$('#pill'), $('#rot')];
+    let dimT; const undim = () => { pills.forEach(x => x.classList.remove('dim')); clearTimeout(dimT); dimT = setTimeout(() => pills.forEach(x => x.classList.add('dim')), 3500); };
+    // Landscape mode. If the viewer itself is landscape nothing is rotated; otherwise we rotate the player.
+    let rotPref = false; try { rotPref = localStorage.getItem('prp-rotate') === '1'; } catch (e) {}
+    let synthetic = false;
+    const applyRotate = () => {
+      const w = window.innerWidth, h = window.innerHeight, play = $('#play');
+      const on = rotPref && h > w;
+      document.body.classList.toggle('rotated', on); window.__ejsRotate = on;
+      play.style.width = on ? h + 'px' : ''; play.style.height = on ? w + 'px' : '';
+      // Content box after any rotation; landscape layout when wider than tall.
+      const W = on ? h : w, H = on ? w : h, land = W > H;
+      document.body.classList.toggle('land', land);
+      const margin = (W - 1.5 * H) / 2;                       // black space beside a 3:2 picture at full height
+      play.style.setProperty('--pad', land ? Math.max(0, 135 - margin).toFixed(1) + 'px' : '0px');
+      $('#rot').textContent = rotPref ? '⟲' : '⟳';
+      $('#rot').hidden = (!on && w > h);                       // device is already landscape: nothing to rotate
+      setTimeout(() => { synthetic = true; window.dispatchEvent(new Event('resize')); synthetic = false; }, 50);
+    };
+    $('#rot').addEventListener('click', () => { rotPref = !rotPref; try { localStorage.setItem('prp-rotate', rotPref ? '1' : '0'); } catch (e) {} applyRotate(); undim(); toast(rotPref ? 'Landscape — turn your phone counter-clockwise' : 'Portrait'); });
+    let rz; window.addEventListener('resize', () => { if (synthetic) return; clearTimeout(rz); rz = setTimeout(applyRotate, 80); });
+    applyRotate();
+    $('#play').addEventListener('touchstart', undim, { passive: true }); $('#play').addEventListener('mousedown', undim);
+    const canFullscreen = !!(document.fullscreenEnabled || document.webkitFullscreenEnabled);
+
+    const file = new File([data], m.name);
+    window.EJS_player = '#game';
+    window.EJS_core = m.system;                     // 'gba' → mGBA, 'gb' → Gambatte (handles GB + GBC)
+    window.EJS_gameUrl = file;
+    window.EJS_gameName = baseName(m.name);         // stable key for saves/states
+    window.EJS_pathtodata = 'data/';
+    // core archives are served with a .wasm name (the host only serves known extensions)
+    window.EJS_paths = {
+      'mgba-wasm.data': 'data/cores/mgba-wasm.wasm', 'mgba-legacy-wasm.data': 'data/cores/mgba-legacy-wasm.wasm',
+      'gambatte-wasm.data': 'data/cores/gambatte-wasm.wasm', 'gambatte-legacy-wasm.data': 'data/cores/gambatte-legacy-wasm.wasm'
+    };
+    // Embedded webviews (Claude app, iOS) only unlock audio on a direct tap, so the game
+    // shows a Start button after the core loads instead of auto-starting silently.
+    window.EJS_startOnLoaded = false;
+    window.EJS_startButtonName = 'Tap to start  ·  sound on';
+    window.EJS_alignStartButton = 'center';
+    window.EJS_disableAutoLang = false;             // skip locale fetch; English UI
+    window.EJS_color = '#d1495b';
+    window.EJS_backgroundColor = '#000000';
+    window.EJS_threads = false;
+    // Save states must stay in browser storage: the hosted page cannot trigger file downloads.
+    window.EJS_defaultOptions = { 'save-save-interval': '30', 'ff-ratio': '3.0', 'save-state-slot': '1', 'save-state-location': 'browser' };
+    window.EJS_Buttons = {
+      playPause: true, restart: true, mute: true, settings: true, fullscreen: canFullscreen,
+      saveState: true, loadState: true, quickSave: true, quickLoad: true,
+      cheat: true, gamepad: true, volume: true, exitEmulation: true,
+      // these rely on file downloads, screen capture or netplay, which the hosted page cannot do:
+      saveSavFiles: false, loadSavFiles: true, screenshot: false, screenRecord: false, netplay: false, cacheManager: false
+    };
+    window.EJS_ready = () => {
+      try { window.EJS_emulator.on('exit', () => leave()); } catch (e) {}
+    };
+    let wakeLock = null;
+    const keepAwake = async () => { try { if (navigator.wakeLock && !wakeLock) { wakeLock = await navigator.wakeLock.request('screen'); wakeLock.addEventListener('release', () => { wakeLock = null; }); } } catch (e) {} };
+    window.EJS_onGameStart = () => {
+      keepAwake(); undim();
+      try {
+        const e = window.EJS_emulator;
+        if (e.getSettingValue('save-state-location') !== 'browser') e.changeSettingOption('save-state-location', 'browser');
+        if (e.allSettings) e.allSettings['save-state-location'] = 'browser';
+      } catch (err) {}
+    };
+    document.addEventListener('visibilitychange', () => { if (!document.hidden && window.EJS_emulator && EJS_emulator.started) keepAwake(); });
+    const s = document.createElement('script'); s.src = 'data/loader.js'; s.onerror = () => toast('Emulator files failed to load');
+    document.body.appendChild(s);
+  }
+  function flushSaves(){
+    try { const e = window.EJS_emulator; if (e && e.started && e.gameManager) e.gameManager.saveSaveFiles(); } catch (err) {}
+  }
+  async function leave(){
+    flushSaves();
+    $('#gtitle').textContent = '· saving…';
+    if (current) {
+      // IDBFS persists asynchronously after the core writes its save: wait for the .srm timestamp to move (max 3 s).
+      const since = Date.now() - 50;
+      for (let i = 0; i < 10; i++) { await new Promise(r => setTimeout(r, 300)); const l = await readLocalSave(current); if (l && l.ts >= since) break; }
+      try { await withTimeout(syncUp(current, true), 8000, 'timeout'); } catch (e) {}
+    }
+    location.reload();
+  }
+  let upTimer = setInterval(() => { if (current && window.EJS_emulator && EJS_emulator.started) { flushSaves(); setTimeout(() => syncUp(current, true), 1000); } }, 90000);
+  $('#pill').addEventListener('click', leave);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) { flushSaves(); if (current) setTimeout(() => syncUp(current, true), 1500); } });
+  window.addEventListener('pagehide', flushSaves);
+
+  render();
+})();
+</script>
+</body>
+</html>
