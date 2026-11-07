@@ -123,8 +123,12 @@
   body.land #game{inset:0}
   body.land .ejs_canvas_parent{position:absolute!important;top:0;bottom:0;left:var(--pad,0px)!important;right:var(--pad,0px)!important;width:auto!important;height:auto!important}
   body.land .ejs_virtualGamepad_parent{top:0;bottom:0!important}
-  body.land .ejs_virtualGamepad_left{bottom:auto!important;top:calc(50% - 50px)!important;left:calc(var(--inl) + 4px)!important}
-  body.land .ejs_virtualGamepad_right{bottom:auto!important;top:calc(50% - 75px)!important;right:calc(var(--inr) + 4px)!important}
+  body.land .ejs_virtualGamepad_left{bottom:auto!important;top:calc(50% - 60px)!important;left:calc(var(--inl) + 2px)!important;width:150px!important;height:150px!important}
+  body.land .ejs_dpad_vertical{width:44px!important} body.land .ejs_dpad_horizontal{height:44px!important}
+  body.land .ejs_virtualGamepad_right{bottom:auto!important;top:calc(50% - 85px)!important;right:calc(var(--inr) + 2px)!important;width:160px!important;height:160px!important}
+  body.land .b_a,body.land .b_b{width:64px!important;height:64px!important;line-height:64px!important;font-size:34px!important}
+  body.land .b_b{left:12px!important;top:88px!important}
+  body.land .b_a{left:94px!important;top:34px!important}
   body.land .b_l,body.land .b_r,body.land .b_select,body.land .b_start,body.land .b_speed_fast,body.land .b_speed_slow{position:fixed!important;top:auto!important;width:60px!important}
   body.land .b_l{top:48px!important;left:calc(var(--inl) + 6px)!important}
   body.land .b_r{top:48px!important;left:auto!important;right:calc(var(--inr) + 6px)!important}
@@ -721,8 +725,10 @@
       // Content box after any rotation; landscape layout when wider than tall.
       const W = on ? h : w, H = on ? w : h, land = W > H;
       document.body.classList.toggle('land', land);
-      const margin = (W - 1.5 * H) / 2;                       // black space beside a 3:2 picture at full height
-      play.style.setProperty('--pad', land ? Math.max(0, 135 - margin).toFixed(1) + 'px' : '0px');
+      // Keep at least MINM px beside the picture for the controls: if a full-height 3:2 picture would leave less,
+      // inset the canvas by MINM on both sides so the picture shrinks to fit instead of hiding under the controls.
+      const MINM = 130, margin = (W - 1.5 * H) / 2;
+      play.style.setProperty('--pad', (land && margin < MINM) ? MINM + 'px' : '0px');
       $('#rot').textContent = rotPref ? '⟲' : '⟳';
       $('#rot').hidden = (!on && w > h);                       // device is already landscape: nothing to rotate
       setTimeout(() => { synthetic = true; window.dispatchEvent(new Event('resize')); synthetic = false; }, 50);
@@ -753,6 +759,8 @@
     window.EJS_color = '#d1495b';
     window.EJS_backgroundColor = '#000000';
     window.EJS_threads = false;
+    // Touch devices get a ☰ button; make it the only way the menu bar appears (taps on the game stay in the game).
+    window.__ejsMenuOnlyButton = ('ontouchstart' in window) || navigator.maxTouchPoints > 0;
     // Save states must stay in browser storage: the hosted page cannot trigger file downloads.
     window.EJS_defaultOptions = { 'save-save-interval': '30', 'ff-ratio': '3.0', 'save-state-slot': '1', 'save-state-location': 'browser' };
     window.EJS_Buttons = {
